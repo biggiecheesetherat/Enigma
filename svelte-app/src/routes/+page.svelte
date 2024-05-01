@@ -160,6 +160,7 @@
             config,
             en,
             Toolbox,
+            isEditor: true,
 
             getWorkspace: () => workspace,
             getCompiler: () => compiler,
