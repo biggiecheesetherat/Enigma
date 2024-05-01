@@ -1,3 +1,4 @@
+import Emitter from '../emitter';
 import ProjectState from "./index";
 import BlobAndDataUrl from "../blobanddataurl";
 import JSZip from "jszip";
@@ -122,5 +123,6 @@ export default async (arrayBuffer, formatVersionFoundCallback) => {
     // laod
     console.log(projectJson); // debug
     ProjectState.loadProject(projectJson, idWorkspacePairs, formatVersion);
+    Emitter.emitGlobal("PROJECT_LOADED", projectJson, idWorkspacePairs, formatVersion);
     return true; // loaded fully
 };
