@@ -1,9 +1,14 @@
+import Precompile from '../compiler/precompile';
 import javascriptGenerator from '../javascriptGenerator';
 import registerBlock from '../register';
 
 const categoryPrefix = 'actions_';
 const categoryColor = '#fa4';
-const frameTime = 1000 / 60; // how much time before the next iteration in a loop
+let frameTime = 1000 / 60; // how much time before the next iteration in a loop
+
+const updateFrameTime = () => {
+    frameTime = 1000 / Precompile.targetFPS;
+};
 
 function flagImage(color) {
     return {
@@ -44,6 +49,7 @@ function register() {
         inputsInline: true,
         colour: categoryColor
     }, () => {
+        updateFrameTime();
         const code = `await new Promise(resolve => setTimeout(() => resolve(), ${frameTime}));`;
         return `${code}\n`;
     })
