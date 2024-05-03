@@ -6,6 +6,7 @@
 class Precompile {
     static forceLoopPauses = true;
     static forceConditionalPauses = true;
+    static targetFPS = 60;
 }
 
 export default Precompile;

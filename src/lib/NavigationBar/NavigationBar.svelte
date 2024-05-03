@@ -1,3 +1,9 @@
+<script>
+    import { activeModals } from '$lib/stores.js';
+
+    import NavigationOption from "$lib/NavigationBar/NavigationOption.svelte";
+</script>
+
 <div>
     <img
         src="/images/icon.png"
@@ -12,6 +18,24 @@
         style="height: 100%;"
     />
     <slot />
+
+    <NavigationOption
+        name="Settings"
+        icon="/images/gui-icons/cog-icon.png"
+        on:click={() => {
+            $activeModals.settings = !$activeModals.settings
+        }}
+    />
+    <a
+        href="/credits"
+        target="_blank"
+        class="link-option"
+    >
+        <NavigationOption
+            name="Credits"
+            icon="/images/gui-icons/information-icon.png"
+        />
+    </a>
 </div>
 
 <style>
@@ -36,5 +60,10 @@
 
     .logo-margin {
         margin-right: 8px;
+    }
+    .link-option {
+        height: 100%;
+        text-decoration: none;
+        margin-left: 6px;
     }
 </style>

@@ -45,7 +45,7 @@ function register() {
                 "flipRtl": false
             },
         ],
-        output: [null],
+        output: null,
         inputsInline: true,
         colour: categoryColor
     }, (block) => {
@@ -105,7 +105,7 @@ function register() {
                 "flipRtl": false
             },
         ],
-        output: [null],
+        output: null,
         inputsInline: true,
         colour: categoryColor
     }, (block) => {

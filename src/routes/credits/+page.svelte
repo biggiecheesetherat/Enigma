@@ -52,6 +52,19 @@
         </p>
         <p>
             <img
+                alt="fullscreen-icon-in"
+                src="/images/gui-icons/fullscreen-icon-in.png"
+            />
+            <code>fullscreen-icon-in</code>
+            was edited by JeremyGamer13. The original is
+            <img
+                alt="arrow-out-icon"
+                src="/images/gui-icons/arrow-out-icon.png"
+            />
+            <code>arrow-out-icon</code>.
+        </p>
+        <p>
+            <img
                 alt="arrow-rotate-left"
                 src="/images/gui-icons/arrow-rotate-left.png"
             />

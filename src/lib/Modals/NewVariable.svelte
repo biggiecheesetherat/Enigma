@@ -1,12 +1,7 @@
 <script>
     import Emitter from "../../resources/emitter";
+    import { playSound } from "../../resources/editor/sounds";
     export let workspace;
-    
-    function playSound(name) {
-        const audio = new Audio(`/sounds/${name}.mp3`);
-        audio.play();
-        audio.volume = 0.5;
-    }
 
     let inDisplay = false;
     let currentDisplay = {

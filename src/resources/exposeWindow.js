@@ -13,7 +13,6 @@ import fileDialog from './fileDialog';
 import convertArgToBlock from './argBlocks';
 import registerBlock from './register';
 import generateTransformCSS from './generateTransformCSS';
-import preloadAudio from './preload';
 import proxyFetch from './proxyFetch';
 
 // compiler
@@ -55,7 +54,6 @@ export default (extraExports, includeDefaults) => {
         convertArgToBlock,
         fileDialog,
         generateTransformCSS,
-        preloadAudio,
         proxyFetch,
     };
     window.Clamp = {

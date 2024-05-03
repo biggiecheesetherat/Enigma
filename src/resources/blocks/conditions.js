@@ -5,10 +5,11 @@ import Precompile from '../compiler/precompile';
 
 const categoryPrefix = 'conditions_';
 const categoryColor = '#ffb900';
-const repeatDelayTime = 1000 / 60; // how much time before the next iteration in a loop
+let repeatDelayTime = 1000 / 60; // how much time before the next iteration in a loop
 
 const repeatCondDelayIfEnabled = () => {
     if (!Precompile.forceConditionalPauses) return '';
+    repeatDelayTime = 1000 / Precompile.targetFPS;
     return `await new Promise(resolve => setTimeout(() => resolve(), ${repeatDelayTime}));`;
 };
 

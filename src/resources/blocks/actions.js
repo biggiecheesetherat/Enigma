@@ -107,7 +107,7 @@ function register() {
     })
     // when stop clicked {}
     registerBlock(`${categoryPrefix}whenstopclicked`, {
-        message0: 'when %1 clicked %2 %3',
+        message0: 'before project %1 exits %2 %3',
         args0: [
             {
                 "type": "field_image",

@@ -47,6 +47,7 @@ export default () => {
         settings: {
             forceLoopPauses: true,
             forceConditionalPauses: true,
+            targetFPS: 60,
         },
         customData: {} // custom scripts can add data here
     };

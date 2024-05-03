@@ -5,12 +5,15 @@
     import NavigationBar from "$lib/NavigationBar/NavigationBar.svelte";
     import NavigationMargin from "$lib/NavigationBar/NavigationMargin.svelte";
     import NavigationOption from "$lib/NavigationBar/NavigationOption.svelte";
+    import NavigationOptionMenu from "$lib/NavigationBar/NavigationOptionMenu.svelte";
+
     import GamePlayer from "$lib/GamePlayer/Player.svelte";
     import SoundEditor from "$lib/SoundEditor/Editor.svelte";
     import ImageEditor from "$lib/ImageEditor/Editor.svelte";
     
     // Modals
     import ModalNewVariable from "$lib/Modals/NewVariable.svelte";
+    import ModalSettings from "$lib/Settings/Component.svelte";
 
     // Toolbox
     import Toolbox from "$lib/Toolbox/Toolbox.xml?raw";
@@ -18,17 +21,20 @@
     import JSZip from "jszip";
     import * as FileSaver from "file-saver";
     import fileDialog from "../resources/fileDialog";
+    import { playSound, preloadSounds } from "../resources/editor/sounds.js";
     import ImageLibrary from "$lib/ImageEditor/library.json";
     import { saveFormatVersion } from "../resources/state/download";
+    import SettingsAPI from "../resources/editor/settings-api";
 
     import Blockly from "blockly/core";
     import DarkTheme from "@blockly/theme-dark";
     import * as ContinuousToolboxPlugin from "@blockly/continuous-toolbox";
     import Patches from "../patches";
 
-    // this gives event blocks a little bump at the top
+    // edit theme stuff so we match scratch a bit
+    // startHats gives event blocks a little bump at the top
+    const fontName = SettingsAPI.getSetting('native-setting.customEditorFont.font');
     DarkTheme.startHats = true;
-    const fontName = localStorage.getItem('clamp:editorFont');
     DarkTheme.fontStyle = {
         family: `"${fontName || 'Arial'}", Arial, Helvetica, sans-serif`,
         weight: "600",
@@ -54,7 +60,6 @@
     import State from "../resources/state";
     import Emitter from "../resources/emitter";
     import Compiler from "../resources/compiler";
-    import preload from "../resources/preload";
     import exposeWindow from "../resources/exposeWindow";
     import ClampEditorCommunicator from "../resources/editorCommunicator";
 
@@ -143,12 +148,6 @@
 
     const characterTabs = {};
     let currentCharacterTab = "properties";
-
-    function playSound(name) {
-        const audio = new Audio(`/sounds/${name}.mp3`);
-        audio.play();
-        audio.volume = 0.5;
-    }
     
     // expose a bunch of internal functions & classes, eventually for custom scripts to use
     onMount(() => {
@@ -190,7 +189,7 @@
     onMount(() => {
         console.log("ignore the warnings above we dont care about those");
 
-        preload([
+        preloadSounds([
             "/sounds/confirm.mp3",
             "/sounds/explode.mp3",
             "/sounds/tabswitch.mp3",
@@ -210,11 +209,6 @@
             // fixes problems with certain blocks not working when not attached to anything
             Blockly.Events.disableOrphans(event);
         });
-
-        // debug
-        // window.addEventListener("keypress", () => {
-        //     console.log(State.currentProject);
-        // });
     });
 
     Emitter.on("CODE_INITIALIZE_UPDATE", () => {
@@ -230,7 +224,7 @@
                 Emitter.dropout("CODE_PROGRAM_UPDATED", wasWaitingForUpdateCallback);
                 wasWaitingForUpdateCallback(true); // marks cancelled
             }
-            playSound("confirm");
+            
             const code = compiler.compile();
             Emitter.update(code);
             lastGeneratedCode = code;
@@ -273,19 +267,27 @@
         }
     }
 
+    let experiencingProgramUpdate = false;
     async function runButtonClicked() {
+        experiencingProgramUpdate = true;
         await updateProgram();
+        experiencingProgramUpdate = false;
         Emitter.emitGlobal("RUN_BUTTON");
     }
     function stopButtonClicked() {
         Emitter.emitGlobal("STOP_BUTTON");
+        Emitter.emitGlobal("SUSPEND");
     }
+    let insideFullscreen = false;
     function fullscreenButtonClicked() {
         try {
             if (document.fullscreenElement) {
                 document.exitFullscreen();
+                insideFullscreen = false;
+                return;
             }
             playerArea.requestFullscreen();
+            insideFullscreen = true;
         } catch (err) {
             console.log(
                 "fullscreen button error, fullscreen may not be supported;",
@@ -298,21 +300,8 @@
         Emitter.emitGlobal("SUSPEND");
     }
 
-    let fileMenu;
-    function showFileMenu() {
-        playSound("tabswitch");
-
-        if (fileMenu.style.display == "none") {
-            fileMenu.style.display = "";
-            return;
-        }
-        fileMenu.style.display = "none";
-    }
-
     let projectName = "";
     function downloadProject() {
-        playSound("tabswitch");
-
         // generate file name
         let filteredProjectName = projectName.replace(/[^a-z0-9\-]+/gim, "_");
         let fileName = filteredProjectName + ".clamp";
@@ -329,8 +318,6 @@
         });
     }
     function loadProject() {
-        playSound("tabswitch");
-
         fileDialog({ accept: ".clamp" }).then((files) => {
             if (!files) return;
             const file = files[0];
@@ -360,80 +347,6 @@
                 });
         });
     }
-    
-    // settings menu handler
-    let isShowingSettingsMenu = false;
-    let settingsMenuList;
-    function updateSettingsList(deleting) {
-        if (deleting) {
-            return Emitter.emitGlobal('EDITOR_SETTINGS_CLOSING', settingsMenuList);
-        }
-        setTimeout(() => {
-            Emitter.emitGlobal('EDITOR_SETTINGS_OPENED', settingsMenuList);
-        });
-    }
-
-    // register settings menu items
-    (() => {
-        let settingsElements;
-        const createElements = () => {
-            const div = document.createElement('div');
-            div.style.width = "100%";
-            // customEditorFont
-            const customEditorFont = div.appendChild(document.createElement('label'));
-            customEditorFont.innerHTML = '<div><h2>Custom Editor Font</h2><p>Changes the font for the editor. <b>Font will only apply after refreshing the page.</b></p></div>';
-            customEditorFont.style.margin = "8px 0";
-            customEditorFont.style.display = 'flex';
-            customEditorFont.style.alignItems = "center";
-            customEditorFont.style.justifyContent = "space-between";
-            const customEditorFontSelect = customEditorFont.appendChild(document.createElement('input'));
-            customEditorFontSelect.value = localStorage.getItem('clamp:editorFont');
-            customEditorFontSelect.style = 'margin-right:8px;';
-            customEditorFontSelect.onchange = () => {
-                const fontName = customEditorFontSelect.value || 'Arial';
-                localStorage.setItem('clamp:editorFont', fontName);
-                console.log('updated font to', fontName);
-            };
-            // forceLoopPauses
-            const forceLoopPauses = div.appendChild(document.createElement('label'));
-            forceLoopPauses.innerHTML = '<div><h2>Force Loops to pause</h2><p>Used if loops have a chance to repeat forever. Wait blocks will be required inside of forever loops (and loops that may repeat forever) if this is disabled.</p></div>';
-            forceLoopPauses.style.margin = "8px 0";
-            forceLoopPauses.style.display = 'flex';
-            forceLoopPauses.style.alignItems = "center";
-            forceLoopPauses.style.justifyContent = "space-between";
-            const forceLoopPausesCheckbox = forceLoopPauses.appendChild(document.createElement('input'));
-            forceLoopPausesCheckbox.checked = State.currentProject.settings.forceLoopPauses;
-            forceLoopPausesCheckbox.type = 'checkbox';
-            forceLoopPausesCheckbox.style = 'width:48px;height:48px;margin-right:8px;';
-            forceLoopPausesCheckbox.onclick = () => {
-                State.currentProject.settings.forceLoopPauses = forceLoopPausesCheckbox.checked;
-            };
-            // forceConditionalPauses
-            const forceConditionalPauses = div.appendChild(document.createElement('label'));
-            forceConditionalPauses.innerHTML = '<div><h2>Force Conditional Pauses</h2><p>Used if blocks can wait for a statement to be true, but have a chance to wait forever. If this is disabled, the page will freeze when a block is waiting forever.</p></div>';
-            forceConditionalPauses.style.margin = "8px 0";
-            forceConditionalPauses.style.display = 'flex';
-            forceConditionalPauses.style.alignItems = "center";
-            forceConditionalPauses.style.justifyContent = "space-between";
-            const forceConditionalPausesCheckbox = forceConditionalPauses.appendChild(document.createElement('input'));
-            forceConditionalPausesCheckbox.checked = State.currentProject.settings.forceConditionalPauses;
-            forceConditionalPausesCheckbox.type = 'checkbox';
-            forceConditionalPausesCheckbox.style = 'width:48px;height:48px;margin-right:8px;';
-            forceConditionalPausesCheckbox.onclick = () => {
-                State.currentProject.settings.forceConditionalPauses = forceConditionalPausesCheckbox.checked;
-            };
-            return div;
-        };
-        Emitter.on('EDITOR_SETTINGS_OPENED', (settingsMenuList) => {
-            if (!settingsElements) settingsElements = createElements();
-            settingsMenuList.appendChild(settingsElements);
-        });
-        Emitter.on('EDITOR_SETTINGS_CLOSING', () => {
-            if (settingsElements) {
-                settingsElements.remove();
-            }
-        });
-    })();
 
     // editing target changes
     Emitter.on("EDITING_TARGET_UPDATED", () => {
@@ -538,43 +451,24 @@
     }
 </script>
 
-<NavigationBar>
-    <NavigationOption on:click={showFileMenu}>
-        <img
-            alt="File"
-            src="/images/gui-icons/page-white-icon.png"
-            width="16"
-            style="margin-left:6px;margin-right:6px;"
+<NavigationBar inEditor={true}>
+    <NavigationOptionMenu
+        name="File"
+        icon="/images/gui-icons/page-white-icon.png"
+    >
+        <NavigationOption
+            name="Import"
+            icon="/images/gui-icons/page-white-put-icon.png"
+            style="height:48px;width:100%"
+            on:click={loadProject}
         />
-        <span style="margin-right:6px;">File</span>
-        <!-- menu below -->
-        <div bind:this={fileMenu} style="display:none" class="dialog-menu">
-            <NavigationOption
-                style="height:48px;width:100%"
-                on:click={loadProject}
-            >
-                <img
-                    alt="Import"
-                    src="/images/gui-icons/page-white-put-icon.png"
-                    width="16"
-                    style="margin-left:6px;margin-right:6px;"
-                />
-                <span style="margin-right:6px;">Import</span>
-            </NavigationOption>
-            <NavigationOption
-                style="height:48px;width:100%"
-                on:click={downloadProject}
-            >
-                <img
-                    alt="Save"
-                    src="/images/gui-icons/disk-icon.png"
-                    width="16"
-                    style="margin-left:6px;margin-right:6px;"
-                />
-                <span style="margin-right:6px;">Download</span>
-            </NavigationOption>
-        </div>
-    </NavigationOption>
+        <NavigationOption
+            name="Download"
+            icon="/images/gui-icons/disk-icon.png"
+            style="height:48px;width:100%"
+            on:click={downloadProject}
+        />
+    </NavigationOptionMenu>
 
     <input
         class="project-name"
@@ -583,70 +477,12 @@
         style="margin-left:4px;margin-right:4px"
         bind:value={projectName}
     />
-
-    <NavigationOption on:click={() => {
-        if (isShowingSettingsMenu) {
-            // we wont be after click
-            updateSettingsList(true);
-        }
-        isShowingSettingsMenu = !isShowingSettingsMenu;
-        if (isShowingSettingsMenu) {
-            // we were just shown
-            updateSettingsList(false);
-        }
-        playSound("tabswitch");
-    }}>
-        <img
-            alt="Gear"
-            src="/images/gui-icons/cog-icon.png"
-            width="16"
-            style="margin-left:6px;margin-right:6px;"
-        />
-        <span style="margin-right:6px;">Settings</span>
-    </NavigationOption>
-
-    <a
-        href="/credits"
-        target="_blank"
-        style="height:100%;text-decoration:none;margin-left:6px"
-        on:click={() => playSound("tabswitch")}
-    >
-        <NavigationOption>
-            <img
-                alt="Info"
-                src="/images/gui-icons/information-icon.png"
-                width="16"
-                style="margin-left:6px;margin-right:6px;"
-            />
-            <span style="margin-right:6px;">Credits</span>
-        </NavigationOption>
-    </a>
 </NavigationBar>
 <div class="main">
     <NavigationMargin />
-    {#if isShowingSettingsMenu}
-        <div class="library">
-            <div class="library-title">
-                <h1>Settings</h1>
-            </div>
-            <div class="library-contents" bind:this={settingsMenuList} />
-            <div class="library-footer">
-                <button
-                    class="library-exit"
-                    on:click={() => {
-                        updateSettingsList(true);
-                        isShowingSettingsMenu = false;
-                        playSound("tabswitch");
-                    }}
-                >
-                    OK
-                </button>
-            </div>
-        </div>
-        <div class="backing" />
-    {/if}
-
-    <ModalNewVariable {workspace}></ModalNewVariable>
+    
+    <ModalNewVariable {workspace} />
+    <ModalSettings />
 
     <div class="sides">
         <div class="left">
@@ -689,11 +525,11 @@
                     {/if}
                     {#if initializingCode === true}
                         <img
-                            alt="Updating"
+                            alt="Compiling"
                             src="/images/gui-icons/cog-icon.png"
                             style="margin-left:8px;"
                         />
-                        <p>Updating...</p>
+                        <p>Compiling...</p>
                     {/if}
                 </div>
             </div>
@@ -741,10 +577,24 @@
             <div class="playerComponents" bind:this={playerArea}>
                 <div class="abovePlayer">
                     <button on:click={runButtonClicked} class="bar-button">
-                        <img alt="Run" src="/images/gui-icons/run-icon.png" />
+                        <img
+                            alt="Run"
+                            title="Run"
+                            src="/images/gui-icons/{experiencingProgramUpdate ? 'blank-green' : 'run'}-icon.png"
+                        />
+                        <div>
+                            Compile
+                        </div>
                     </button>
                     <button on:click={stopButtonClicked} class="bar-button">
-                        <img alt="Stop" src="/images/gui-icons/stop-icon.png" />
+                        <img
+                            alt="Exit"
+                            title="Exit"
+                            src="/images/gui-icons/stop-icon.png"
+                        />
+                        <div>
+                            Exit
+                        </div>
                     </button>
                     <button
                         on:click={fullscreenButtonClicked}
@@ -752,21 +602,25 @@
                     >
                         <img
                             alt="Fullscreen"
-                            src="/images/gui-icons/fullscreen-icon.png"
+                            title="Fullscreen"
+                            src="/images/gui-icons/fullscreen-icon{insideFullscreen ? '-in' : ''}.png"
                         />
+                        <div>
+                            Fullscreen
+                        </div>
                     </button>
+                    
                     <button
-                        on:click={suspendButtonClicked}
                         class="bar-button"
                         style="float:right"
                     >
                         <img
-                            alt="Suspend"
-                            title="Suspend Program"
-                            src="/images/gui-icons/bomb-icon.png"
+                            alt="Debug"
+                            title="Debug"
+                            src="/images/gui-icons/application-xp-terminal-icon.png"
                         />
                         <div>
-                            Suspend
+                            Debug
                         </div>
                     </button>
                 </div>
@@ -1021,18 +875,6 @@
         color: black;
     }
 
-    .dialog-menu {
-        position: absolute;
-        left: 0px;
-        top: 100%;
-
-        background: #222;
-        border: 4px solid white;
-        padding: 2px;
-
-        z-index: 10000;
-    }
-
     .sides {
         width: 100%;
         height: calc(100% - 3.25rem - 8px);
@@ -1280,87 +1122,5 @@
     }
     .box[data-selected="true"] {
         border: 4px solid #b200fe;
-    }
-
-    /* settings menu */
-    .library {
-        position: absolute;
-        left: 10%;
-        top: 10%;
-        width: 80%;
-        height: 80%;
-
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-
-        background: #222;
-        border: white 4px solid;
-
-        z-index: 80000;
-    }
-    .backing {
-        position: absolute;
-        left: 0%;
-        top: 0%;
-        width: 100%;
-        height: 100%;
-
-        background: rgba(0, 0, 0, 0.5);
-
-        z-index: 70000;
-    }
-
-    .library-title {
-        width: 90%;
-        height: 88px;
-
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-
-        border-bottom: 1px solid rgba(255, 255, 255, 0.5);
-    }
-    .library-contents {
-        width: calc(100% - 16px);
-        height: calc(90% - 104px);
-        padding: 8px;
-
-        overflow: auto;
-
-        display: flex;
-        flex-wrap: nowrap;
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    .library-footer {
-        width: 90%;
-        height: 10%;
-
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-
-        border-top: 1px solid rgba(255, 255, 255, 0.5);
-    }
-
-    .library-exit {
-        width: 50%;
-        height: 75%;
-
-        background: rgb(163,0,232);
-        background: linear-gradient(0deg, rgba(163,0,232,1) 49%, rgba(191,41,255,1) 50%);
-        color: white;
-        border: 1px solid white;
-        border-radius: 8px;
-
-        font-size: 20px;
-
-        cursor: pointer;
-    }
-    .library-exit:active {
-        background: rgb(140,0,201);
-        background: linear-gradient(0deg, rgba(140,0,201,1) 48%, rgb(158, 34, 211) 49%);
     }
 </style>

@@ -6,10 +6,11 @@ import Precompile from '../compiler/precompile';
 
 const categoryPrefix = 'repeats_';
 const categoryColor = '#0ad';
-const repeatDelayTime = 1000 / 60; // how much time before the next iteration in a loop
+let repeatDelayTime = 1000 / 60; // how much time before the next iteration in a loop
 
 const repeatDelayIfEnabled = () => {
     if (!Precompile.forceLoopPauses) return '';
+    repeatDelayTime = 1000 / Precompile.targetFPS;
     return `await new Promise(resolve => setTimeout(() => resolve(), ${repeatDelayTime}));`;
 };
 
