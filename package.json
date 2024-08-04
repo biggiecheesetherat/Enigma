@@ -22,7 +22,7 @@
 		"@blockly/field-slider": "^6.1.4",
 		"@blockly/theme-dark": "^4.0.10",
 		"@sveltejs/adapter-vercel": "^3.0.0",
-		"blockly": "^9.0.0",
+		"blockly": "^10.0.0",
 		"file-saver": "^2.0.5",
 		"jszip": "^3.10.1",
 		"markdown-it": "^14.1.0"
